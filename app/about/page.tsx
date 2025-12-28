@@ -40,7 +40,7 @@ export default function AboutPage() {
             </p>
             <p className="text-muted-foreground leading-relaxed">
               Her work has been featured in numerous galleries across the United States, including exhibitions in New
-              York, Los Angeles, and San Francisco. Jane's paintings are held in private collections worldwide and have
+              York, Los Angeles, and San Francisco. Jane&apos;s paintings are held in private collections worldwide and have
               been recognized for their unique ability to evoke emotional responses while maintaining aesthetic
               sophistication.
             </p>

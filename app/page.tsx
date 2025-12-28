@@ -75,7 +75,7 @@ export default function HomePage() {
                 with modern sensibilities. Each artwork is a journey of exploration, emotion, and expression.
               </p>
               <p className="text-muted-foreground leading-relaxed">
-                My work has been featured in galleries across the country, and I'm passionate about making art
+                My work has been featured in galleries across the country, and I&apos;m passionate about making art
                 accessible to collectors and enthusiasts alike.
               </p>
               <Button asChild>
