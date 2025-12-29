@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getSupabaseServer } from "@/lib/supabase/server";
 
 export async function GET() {
-  const { data, error } = await supabaseServer.from("products").select("id").limit(1);
+  const supabase = getSupabaseServer();
+  const { data, error } = await supabase.from("products").select("id").limit(1);
 
-  if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  }
-
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, sample: data ?? [] });
 }
