@@ -14,6 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { artworks } from "@/lib/artworks-data"
 import { Plus, Edit, Trash2, LogOut, Home } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
+import { supabaseBrowser } from "@/lib/supabase/browser"
+
 
 export default function AdminDashboard() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -45,8 +48,12 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleLogout = () => {
-    window.location.href = "/admin"
+
+  const router = useRouter()
+
+  async function handleLogout() {
+    await supabaseBrowser.auth.signOut()
+    router.push("/admin")
   }
 
   return (
