@@ -1,3 +1,4 @@
+// lib/server.ts
 import { createClient } from "@supabase/supabase-js";
 
 export function getSupabaseServer() {
@@ -9,4 +10,3 @@ export function getSupabaseServer() {
 
   return createClient(url, key);
 }
-
