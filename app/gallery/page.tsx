@@ -1,6 +1,13 @@
 import { getSupabaseServerClient } from "@/lib/supabase/ssr";
 import Link from "next/link";
 
+function toPublicImageUrl(path: string) {
+  if (!path) return "";
+  if (path.startsWith("http")) return path; // legacy rows
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  return `${base}/storage/v1/object/public/artworks/${path}`;
+}
+
 type GalleryItem = {
   id: string;
   title: string;
@@ -9,7 +16,12 @@ type GalleryItem = {
   currency: string;
   featured: boolean;
   is_published: boolean;
-  product_images: { path: string; alt: string | null; sort_order: number }[];
+  product_images: {
+    id: string;
+    path: string;
+    alt: string | null;
+    sort_order: number;
+  }[];
 };
 
 export default async function GalleryPage() {
@@ -27,6 +39,7 @@ export default async function GalleryPage() {
       featured,
       is_published,
       product_images (
+        id,
         path,
         alt,
         sort_order
@@ -41,7 +54,9 @@ export default async function GalleryPage() {
     return (
       <div className="p-6">
         <h1 className="text-xl font-semibold">Gallery</h1>
-        <p className="mt-4 text-red-600">Failed to load products: {error.message}</p>
+        <p className="mt-4 text-red-600">
+          Failed to load products: {error.message}
+        </p>
       </div>
     );
   }
@@ -58,21 +73,29 @@ export default async function GalleryPage() {
         <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((p) => {
             const firstImage = p.product_images?.[0];
+            const extraCount = Math.max(0, (p.product_images?.length ?? 0) - 1);
+
             return (
               <Link
                 key={p.id}
                 href={`/artwork/${p.slug}`}
                 className="block overflow-hidden rounded-xl border hover:shadow-sm transition"
               >
-                <div className="aspect-[4/3] w-full bg-muted">
+                <div className="aspect-[4/3] w-full bg-muted relative">
                   {firstImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={firstImage.path}
+                      src={toPublicImageUrl(firstImage.path)}
                       alt={firstImage.alt ?? p.title}
                       className="h-full w-full object-cover"
                       loading="lazy"
                     />
+                  ) : null}
+
+                  {extraCount > 0 ? (
+                    <div className="absolute bottom-2 right-2 rounded-full bg-black/80 text-white px-2 py-1 text-xs">
+                      +{extraCount} photos
+                    </div>
                   ) : null}
                 </div>
 
