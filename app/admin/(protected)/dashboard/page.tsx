@@ -17,18 +17,107 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { supabaseBrowser } from "@/lib/supabase/browser"
 
+// OPTION A: hardcode a single product to attach uploads to (Sunset Bloom)
+const OPTION_A_PRODUCT_ID = "e0e2e1e1-57ba-42a3-9878-f74f4af99baf"
 
 export default function AdminDashboard() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const { toast } = useToast()
+  const [uploading, setUploading] = useState(false)
 
-  const handleAddArtwork = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsAddDialogOpen(false)
-    toast({
-      title: "Artwork added",
-      description: "The artwork has been successfully added to the gallery.",
+  // file selection (NO upload on select)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedFileName, setSelectedFileName] = useState<string>("")
+
+  const { toast } = useToast()
+  const router = useRouter()
+
+  // B behavior: each upload INSERTS a new image row with sort_order = next
+  async function addImageRowForProduct(opts: { productId: string; pathOrUrl: string; alt?: string }) {
+    const { productId, pathOrUrl, alt } = opts
+
+    // Find next sort order
+    const { data: maxRow, error: maxErr } = await supabaseBrowser
+      .from("product_images")
+      .select("sort_order")
+      .eq("product_id", productId)
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (maxErr) throw maxErr
+
+    const nextSortOrder = (maxRow?.sort_order ?? -1) + 1
+
+    const { error: insertErr } = await supabaseBrowser.from("product_images").insert({
+      product_id: productId,
+      path: pathOrUrl,
+      alt: alt ?? null,
+      sort_order: nextSortOrder,
     })
+
+    if (insertErr) throw insertErr
+
+    return { sort_order: nextSortOrder }
+  }
+
+  async function uploadToStorage(file: File) {
+    const ext = file.name.split(".").pop() || "jpg"
+    const fileName = `${crypto.randomUUID()}.${ext}`
+    const objectPath = `products/${fileName}`
+
+    const { data, error } = await supabaseBrowser.storage
+      .from("artworks")
+      .upload(objectPath, file, { upsert: false, contentType: file.type })
+
+    if (error) throw error
+
+    const { data: pub } = supabaseBrowser.storage.from("artworks").getPublicUrl(data.path)
+
+    return { storagePath: data.path, publicUrl: pub.publicUrl }
+  }
+
+  async function handleSubmitAddArtwork(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+
+    if (!selectedFile) {
+      toast({
+        title: "Please select an image",
+        description: "Choose a file first, then click Add Artwork.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setUploading(true)
+    try {
+      // 1) Upload file
+      const uploaded = await uploadToStorage(selectedFile)
+
+      // 2) Insert a NEW product_images row (sort_order = next)
+      const res = await addImageRowForProduct({
+        productId: OPTION_A_PRODUCT_ID,
+        pathOrUrl: uploaded.storagePath, // storing URL for now (works with your current frontend)
+        alt: selectedFileName || "Uploaded artwork image",
+      })
+
+      toast({
+        title: "Artwork image added",
+        description: `Uploaded + added image (sort_order=${res.sort_order}).`,
+      })
+
+      // Clear dialog state
+      setSelectedFile(null)
+      setSelectedFileName("")
+      setIsAddDialogOpen(false)
+    } catch (err: any) {
+      toast({
+        title: "Add artwork failed",
+        description: err?.message ?? String(err),
+        variant: "destructive",
+      })
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleEditArtwork = (id: string) => {
@@ -47,9 +136,6 @@ export default function AdminDashboard() {
       })
     }
   }
-
-
-  const router = useRouter()
 
   async function handleLogout() {
     await supabaseBrowser.auth.signOut()
@@ -116,22 +202,54 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between">
               <CardTitle>Manage Artworks</CardTitle>
 
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <Dialog
+                open={isAddDialogOpen}
+                onOpenChange={(open) => {
+                  setIsAddDialogOpen(open)
+                  if (!open) {
+                    setSelectedFile(null)
+                    setSelectedFileName("")
+                  }
+                }}
+              >
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
                     Add Artwork
                   </Button>
                 </DialogTrigger>
+
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Add New Artwork</DialogTitle>
                   </DialogHeader>
-                  <form onSubmit={handleAddArtwork} className="space-y-4 mt-4">
+
+                  <form onSubmit={handleSubmitAddArtwork} className="space-y-4 mt-4">
                     <div className="space-y-2">
                       <Label htmlFor="image">Image Upload</Label>
-                      <Input id="image" type="file" accept="image/*" />
-                      <p className="text-xs text-muted-foreground">Upload an image of the artwork</p>
+                      <Input
+                        id="image"
+                        type="file"
+                        accept="image/*"
+                        disabled={uploading}
+                        onChange={(e) => {
+                          const file = e.currentTarget.files?.[0] ?? null
+                          setSelectedFile(file)
+                          setSelectedFileName(file ? file.name : "")
+                        }}
+                      />
+
+                      {selectedFileName ? (
+                        <p className="text-xs">
+                          Selected: <b>{selectedFileName}</b>
+                        </p>
+                      ) : null}
+
+                      <p className="text-xs text-muted-foreground">
+                        {uploading
+                          ? "Uploading..."
+                          : "Select an image, fill details, then click Add Artwork (Option A: attaches to Sunset Bloom)."}
+                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -164,10 +282,15 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="flex gap-3 pt-4">
-                      <Button type="submit" className="flex-1">
+                      <Button type="submit" className="flex-1" disabled={uploading}>
                         Add Artwork
                       </Button>
-                      <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsAddDialogOpen(false)}
+                        disabled={uploading}
+                      >
                         Cancel
                       </Button>
                     </div>
@@ -176,6 +299,7 @@ export default function AdminDashboard() {
               </Dialog>
             </div>
           </CardHeader>
+
           <CardContent>
             <div className="border rounded-lg overflow-hidden">
               <Table>
@@ -188,6 +312,7 @@ export default function AdminDashboard() {
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
                   {artworks.map((artwork) => (
                     <TableRow key={artwork.id}>
@@ -206,11 +331,7 @@ export default function AdminDashboard() {
                           <Button variant="ghost" size="icon" onClick={() => handleEditArtwork(artwork.id)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteArtwork(artwork.id, artwork.title)}
-                          >
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteArtwork(artwork.id, artwork.title)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
