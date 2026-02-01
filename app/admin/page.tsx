@@ -1,8 +1,6 @@
 "use client"
 
 import type React from "react"
-
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { LogIn } from "lucide-react"
@@ -30,14 +28,10 @@ export default function AdminLoginPage() {
       email,
       password,
     })
-    
+
     if (error) {
       setIsLoading(false)
-      toast({
-        title: "Login failed",
-        description: error.message,
-        variant: "destructive",
-      })
+      toast({ title: "Login failed", description: error.message, variant: "destructive" })
       return
     }
 
@@ -45,44 +39,34 @@ export default function AdminLoginPage() {
     if (!userId) {
       await supabaseBrowser.auth.signOut()
       setIsLoading(false)
-      toast({
-        title: "Login failed",
-        description: "No user returned from Supabase.",
-        variant: "destructive",
-      })
+      toast({ title: "Login failed", description: "No user returned from Supabase.", variant: "destructive" })
       return
     }
 
-    // Check admin in profiles
+    // ✅ Use your existing admin system (profiles.is_admin)
     const { data: profile, error: profileError } = await supabaseBrowser
       .from("profiles")
       .select("is_admin")
       .eq("id", userId)
-      .single()
+      .maybeSingle()
 
     if (profileError) {
       await supabaseBrowser.auth.signOut()
       setIsLoading(false)
-      toast({
-        title: "Login failed",
-        description: profileError.message,
-        variant: "destructive",
-      })
+      toast({ title: "Login failed", description: profileError.message, variant: "destructive" })
       return
     }
 
     if (!profile?.is_admin) {
       await supabaseBrowser.auth.signOut()
       setIsLoading(false)
-      toast({
-        title: "Access denied",
-        description: "Your account is not an admin. Add your email to admin_allowlist and sign up again.",
-        variant: "destructive",
-      })
+      toast({ title: "Access denied", description: "Your account is not authorized for admin access.", variant: "destructive" })
       return
     }
 
     setIsLoading(false)
+
+    // ✅ route groups are NOT part of the URL
     router.push("/admin/dashboard")
   }
 
@@ -91,9 +75,7 @@ export default function AdminLoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-serif">Admin Login</CardTitle>
-          <p className="text-sm text-muted-foreground mt-2">
-            Enter your credentials to access the admin panel
-          </p>
+          <p className="text-sm text-muted-foreground mt-2">Enter your credentials to access the admin panel</p>
         </CardHeader>
 
         <CardContent>
@@ -103,7 +85,6 @@ export default function AdminLoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@praveearts.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -116,7 +97,6 @@ export default function AdminLoginPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -125,30 +105,13 @@ export default function AdminLoginPage() {
             </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                "Logging in..."
-              ) : (
+              {isLoading ? "Logging in..." : (
                 <>
                   <LogIn className="mr-2 h-4 w-4" />
                   Login
                 </>
               )}
             </Button>
-
-            <div className="text-sm text-muted-foreground">
-              Need an admin account?{" "}
-              <Link href="/admin/signup" className="underline underline-offset-4">
-                Create one
-              </Link>
-            </div>
-
-            <div className="mt-4 p-3 bg-muted rounded-md text-xs text-muted-foreground">
-              <p className="font-semibold mb-1">Note:</p>
-              <p>
-                Your email must be in <code>public.admin_allowlist</code> <span className="whitespace-nowrap">before</span>{" "}
-                signup, otherwise <code>is_admin</code> will stay false.
-              </p>
-            </div>
           </form>
         </CardContent>
       </Card>

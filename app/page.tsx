@@ -3,11 +3,40 @@ import { Button } from "@/components/ui/button"
 import { ArtworkCard } from "@/components/artwork-card"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { getFeaturedArtworks } from "@/lib/artworks-data"
 import { ArrowRight } from "lucide-react"
+import { getSupabaseServerClient } from "@/lib/supabase/ssr"
 
-export default function HomePage() {
-  const featuredArtworks = getFeaturedArtworks()
+export default async function Home() {
+  const supabase = await getSupabaseServerClient()
+
+  const { data: featuredArtworks, error } = await supabase
+    .from("products")
+    .select(
+      `
+      id,
+      title,
+      slug,
+      description,
+      price_cents,
+      currency,
+      featured,
+      is_published,
+      product_images (
+        id,
+        path,
+        alt,
+        sort_order
+      )
+    `
+    )
+    .eq("featured", true)
+    .eq("is_published", true)
+    .order("created_at", { ascending: false })
+    .order("sort_order", { referencedTable: "product_images", ascending: true })
+
+  if (error) {
+    console.error("Failed to load featured artworks:", error.message)
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -15,15 +44,16 @@ export default function HomePage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="container mx-auto px-4 py-20 md:py-32">
+        <section className="container mx-auto px-4 py-20 md:py-28">
           <div className="max-w-3xl mx-auto text-center space-y-6">
             <h1 className="text-4xl md:text-6xl font-serif font-bold tracking-tight text-balance">
-              Contemporary Art That Speaks to Your Soul
+              PRAVEE Arts
             </h1>
+
             <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
-              Discover unique artworks created with passion and dedication. Each piece tells a story waiting to become
-              part of yours.
+              Original mixed media artworks and immersive installations—crafted with texture, contrast, and story.
             </p>
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Button asChild size="lg">
                 <Link href="/gallery">
@@ -31,8 +61,9 @@ export default function HomePage() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
+
               <Button asChild variant="outline" size="lg">
-                <Link href="/about">About the Artist</Link>
+                <Link href="/contact">Inquire / Contact</Link>
               </Button>
             </div>
           </div>
@@ -44,12 +75,12 @@ export default function HomePage() {
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-4xl font-serif font-bold mb-4">Featured Artworks</h2>
               <p className="text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                A curated selection of our most popular pieces
+                A curated selection of featured pieces currently published in the collection.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-              {featuredArtworks.map((artwork) => (
+              {(featuredArtworks ?? []).map((artwork: any) => (
                 <ArtworkCard key={artwork.id} artwork={artwork} />
               ))}
             </div>
@@ -62,24 +93,33 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Artist Bio Section */}
+        {/* Artist Bio Section (REAL, not dummy) */}
         <section className="container mx-auto px-4 py-16 md:py-24">
           <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-12 items-center">
             <div className="aspect-square bg-muted rounded-lg overflow-hidden">
-              <img src="/artist-portrait-studio-workspace.jpg" alt="Artist" className="w-full h-full object-cover" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/PraveePhoto.jpeg"
+                alt="PRAVEE Arts - Artist Portrait"
+                className="w-full h-full object-cover"
+              />
             </div>
+
             <div className="space-y-6">
               <h2 className="text-3xl md:text-4xl font-serif font-bold">About the Artist</h2>
+
               <p className="text-muted-foreground leading-relaxed">
-                With over 15 years of experience in contemporary art, I create pieces that blend traditional techniques
-                with modern sensibilities. Each artwork is a journey of exploration, emotion, and expression.
+                I’m a visual artist with 19+ years of experience in Arts &amp; Design, showcasing my work internationally
+                and presenting a solo exhibition at the Ottawa Little Theatre, Canada.
               </p>
+
               <p className="text-muted-foreground leading-relaxed">
-                My work has been featured in galleries across the country, and I&apos;m passionate about making art
-                accessible to collectors and enthusiasts alike.
+                My practice centers on mixed media—layering materials, building textures, and creating pieces that invite
+                exploration. I also create installation art that transforms ideas into immersive, sensory experiences.
               </p>
+
               <Button asChild>
-                <Link href="/about">Learn More</Link>
+                <Link href="/about">Read Full Story</Link>
               </Button>
             </div>
           </div>

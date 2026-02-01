@@ -4,7 +4,13 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   images: {
-    //unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "lxxkvtxaitgclreoxngx.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
+    ],
   },
 }
 

@@ -10,9 +10,8 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Artisan Gallery - Contemporary Art Collection",
-  description: "Discover and purchase unique contemporary artworks by talented artists",
-  generator: "v0.app",
+  title: "PRAVEE Arts",
+  description: "Original artworks, commissions, and curated collections by PRAVEE Arts",
   icons: {
     icon: [
       {
