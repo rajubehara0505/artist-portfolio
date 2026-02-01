@@ -1,16 +1,12 @@
 "use client"
-
+import Image from "next/image"
 import Link from "next/link"
-import { ShoppingCart, Menu } from "lucide-react"
+import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Badge } from "@/components/ui/badge"
-import { useCart } from "@/hooks/use-cart"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 export function Navbar() {
-  const { items } = useCart()
-  const cartCount = items.length
 
   const navLinks = [
     { href: "/", label: "Home" },
@@ -22,11 +18,23 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-20 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <span className="text-xl font-serif font-semibold">Artisan Gallery</span>
+          <Link href="/" className="flex items-center gap-3">
+            <Image
+              src="/branding/Pravee-arts-logo.PNG" // or .jpg
+              alt="PRAVEE Arts logo"
+              width={120}
+              height={120}
+              className="object-contain"
+              priority
+            />
+            {/* <span className="text-2xl font-serif font-semibold tracking-tight">
+              PRAVEE Arts
+            </span> */}
           </Link>
+  
+
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
@@ -45,19 +53,6 @@ export function Navbar() {
           <div className="flex items-center space-x-4">
             {/* Theme Toggle Button */}
             <ThemeToggle />
-            <Link href="/cart">
-              <Button variant="ghost" size="icon" className="relative">
-                <ShoppingCart className="h-5 w-5" />
-                {cartCount > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-                  >
-                    {cartCount}
-                  </Badge>
-                )}
-              </Button>
-            </Link>
 
             {/* Mobile Menu */}
             <Sheet>

@@ -1,8 +1,10 @@
 "use client"
 
 import type React from "react"
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 
-import { useState } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
@@ -11,26 +13,101 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { Mail, Phone, MapPin } from "lucide-react"
+import { Mail, Phone } from "lucide-react"
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser"
+
+type ProductLite = { title: string; slug: string }
 
 export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+  const searchParams = useSearchParams()
+
+  // ✅ Reads /contact?artwork=...
+  const artworkSlug = useMemo(() => {
+    const raw = searchParams.get("artwork")
+    return raw ? raw.trim() : ""
+  }, [searchParams])
+
+  const [artwork, setArtwork] = useState<ProductLite | null>(null)
+  const [loadingArtwork, setLoadingArtwork] = useState(false)
+
+  // ✅ Controlled fields so we can prefill
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [subject, setSubject] = useState("")
+  const [message, setMessage] = useState("")
+
+  // Fetch artwork title by slug (optional)
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadArtwork() {
+      if (!artworkSlug) {
+        setArtwork(null)
+        return
+      }
+
+      setLoadingArtwork(true)
+      const supabase = getSupabaseBrowserClient()
+
+      const { data, error } = await supabase
+        .from("products")
+        .select("title,slug")
+        .eq("slug", artworkSlug)
+        .maybeSingle()
+
+      if (cancelled) return
+
+      if (error || !data) {
+        setArtwork(null)
+      } else {
+        setArtwork({ title: data.title, slug: data.slug })
+      }
+
+      setLoadingArtwork(false)
+    }
+
+    loadArtwork()
+    return () => {
+      cancelled = true
+    }
+  }, [artworkSlug])
+
+  // Prefill subject/message once we know slug/title
+  useEffect(() => {
+    if (!artworkSlug) return
+
+    setSubject((prev) => prev || `Inquiry: ${artwork?.title ?? artworkSlug}`)
+    setMessage((prev) => {
+      if (prev) return prev
+      return `Hello PRAVEE Arts,\n\nI’m interested in the artwork: ${artwork?.title ?? artworkSlug}\n\nCould you please share details about availability, dimensions, medium, and price?\n\nThank you!`
+    })
+  }, [artworkSlug, artwork])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsSubmitting(true)
 
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // Milestone 9 will store this in DB or send email
+    await new Promise((resolve) => setTimeout(resolve, 700))
 
     toast({
-      title: "Message sent!",
-      description: "Thank you for your message. We'll get back to you soon.",
+      title: "Message received!",
+      description: "Thanks for reaching out. I’ll get back to you as soon as possible.",
     })
 
     setIsSubmitting(false)
-    ;(e.target as HTMLFormElement).reset()
+
+    // reset (keep artwork context prefilled)
+    setName("")
+    setEmail("")
+    setSubject(artworkSlug ? `Inquiry: ${artwork?.title ?? artworkSlug}` : "")
+    setMessage(
+      artworkSlug
+        ? `Hello PRAVEE Arts,\n\nI’m interested in the artwork: ${artwork?.title ?? artworkSlug}\n\nCould you please share details about availability, dimensions, medium, and price?\n\nThank you!`
+        : ""
+    )
   }
 
   return (
@@ -41,9 +118,10 @@ export default function ContactPage() {
         <div className="container mx-auto px-4 py-12">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
-              <h1 className="text-4xl md:text-5xl font-serif font-bold mb-4">Get in Touch</h1>
+              <h1 className="text-4xl md:text-5xl font-serif font-bold mb-4">Contact PRAVEE Arts</h1>
               <p className="text-lg text-muted-foreground leading-relaxed">
-                Have a question or interested in commissioning a piece? We&apos;d love to hear from you.
+                Interested in an artwork, a commission, or an installation project? Send a message and include any
+                details (size, medium, deadline, budget) to help me respond faster.
               </p>
             </div>
 
@@ -54,25 +132,75 @@ export default function ContactPage() {
                   <CardTitle>Send a Message</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {/* ✅ Shows only when coming from artwork inquiry */}
+                  {artworkSlug ? (
+                    <div className="mb-5 rounded-lg border bg-muted/30 p-4">
+                      <div className="text-sm font-medium">Regarding</div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        {loadingArtwork ? (
+                          "Loading artwork…"
+                        ) : artwork ? (
+                          <>
+                            <span className="font-medium text-foreground">{artwork.title}</span>{" "}
+                            <span className="text-xs">({artwork.slug})</span>
+                          </>
+                        ) : (
+                          <span className="font-medium text-foreground">{artworkSlug}</span>
+                        )}
+                      </div>
+                      <div className="mt-2">
+                        <Link href={`/artwork/${encodeURIComponent(artworkSlug)}`} className="text-sm hover:underline">
+                          View artwork →
+                        </Link>
+                      </div>
+                    </div>
+                  ) : null}
+
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Name</Label>
-                      <Input id="name" placeholder="Your name" required />
+                      <Input
+                        id="name"
+                        placeholder="Your name"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                      />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" placeholder="your@email.com" required />
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="your@email.com"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="subject">Subject</Label>
-                      <Input id="subject" placeholder="What is this regarding?" required />
+                      <Input
+                        id="subject"
+                        placeholder="Artwork inquiry / Commission / Collaboration"
+                        required
+                        value={subject}
+                        onChange={(e) => setSubject(e.target.value)}
+                      />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="message">Message</Label>
-                      <Textarea id="message" placeholder="Your message..." rows={5} required />
+                      <Textarea
+                        id="message"
+                        placeholder="Tell me what you’re looking for…"
+                        rows={6}
+                        required
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                      />
                     </div>
 
                     <Button type="submit" className="w-full" disabled={isSubmitting}>
@@ -80,7 +208,7 @@ export default function ContactPage() {
                     </Button>
 
                     <p className="text-xs text-center text-muted-foreground">
-                      This is a demo form. No actual emails will be sent.
+                      Tip: If you’re asking about a specific artwork, include the artwork name or paste the link.
                     </p>
                   </form>
                 </CardContent>
@@ -97,7 +225,7 @@ export default function ContactPage() {
                       <Mail className="h-5 w-5 mt-1 text-muted-foreground" />
                       <div>
                         <p className="font-medium">Email</p>
-                        <p className="text-sm text-muted-foreground">contact@artisangallery.com</p>
+                        <p className="text-sm text-muted-foreground">pravirughoobur@gmail.com</p>
                       </div>
                     </div>
 
@@ -105,41 +233,28 @@ export default function ContactPage() {
                       <Phone className="h-5 w-5 mt-1 text-muted-foreground" />
                       <div>
                         <p className="font-medium">Phone</p>
-                        <p className="text-sm text-muted-foreground">+1 (555) 123-4567</p>
+                        <p className="text-sm text-muted-foreground">+1 (343) 843-0103</p>
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-3">
-                      <MapPin className="h-5 w-5 mt-1 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">Studio</p>
-                        <p className="text-sm text-muted-foreground">
-                          123 Art Street
-                          <br />
-                          San Francisco, CA 94102
-                        </p>
-                      </div>
+                    <div className="text-sm text-muted-foreground leading-relaxed pt-2">
+                      Based in Canada. Available for commissions, collaborations, and exhibitions.
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Studio Hours</CardTitle>
+                    <CardTitle>Response Time</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Monday - Friday</span>
-                      <span>10:00 AM - 6:00 PM</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Saturday</span>
-                      <span>11:00 AM - 4:00 PM</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Sunday</span>
-                      <span>Closed</span>
-                    </div>
+                  <CardContent className="space-y-2 text-sm text-muted-foreground">
+                    <p>
+                      I typically reply within <span className="text-foreground font-medium">24–48 hours</span>.
+                    </p>
+                    <p>
+                      For urgent requests, please mention <span className="text-foreground font-medium">“Urgent”</span> in
+                      the subject.
+                    </p>
                   </CardContent>
                 </Card>
               </div>

@@ -8,9 +8,9 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Brand */}
           <div>
-            <h3 className="text-lg font-serif font-semibold mb-4">Artisan Gallery</h3>
+            <h3 className="text-lg font-serif font-semibold mb-4">PRAVEE Arts</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Showcasing unique contemporary artworks that bring beauty and inspiration to your space.
+              Original artworks, commissions, and curated collections.
             </p>
           </div>
 
@@ -45,10 +45,10 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Follow Us</h4>
             <div className="flex space-x-4">
-              <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link href="https://www.instagram.com/praveerughoobur?igsh=MWgyMDVoYXU0eXM3YQ==" className="text-muted-foreground hover:text-foreground transition-colors">
                 <Instagram className="h-5 w-5" />
               </Link>
-              <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link href="https://www.facebook.com/share/1cJ9AvetVy/" className="text-muted-foreground hover:text-foreground transition-colors">
                 <Facebook className="h-5 w-5" />
               </Link>
               <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -59,7 +59,7 @@ export function Footer() {
         </div>
 
         <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Artisan Gallery. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} PRAVEE Arts. All rights reserved.</p>
         </div>
       </div>
     </footer>
