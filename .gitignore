@@ -38,3 +38,4 @@ Thumbs.db
 #to enforce consistent line ending line crlf while git add .
 * text=auto eol=lf
 
+.vercel
