@@ -15,6 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { supabaseBrowser } from "@/lib/supabase/browser"
+import { LogoLoader } from "@/components/ui/logo-loader"
+
 
 type ProductRow = {
   id: string
@@ -123,7 +125,7 @@ export default function AdminDashboard() {
       toast({ title: "Title required", description: "Please enter a title.", variant: "destructive" })
       return
     }
-
+    
     if (!selectedFile) {
       toast({
         title: "Please select an image",
@@ -200,83 +202,166 @@ export default function AdminDashboard() {
   // -------------------------
   // Edit product (DB connected)
   // -------------------------
-  function openEdit(p: ProductRow) {
-    setEditProduct(p)
+  async function openEdit(p: ProductRow) {
     setIsEditDialogOpen(true)
+    setEditProduct(null) // optional: shows blank while loading latest
+    
+    const { data, error } = await supabaseBrowser
+      .from("products")
+      .select("id,title,slug,description,price_cents,currency,featured,is_published")
+      .eq("id", p.id)
+      .single()
+
+    if (error) {
+      toast({ title: "Failed to load artwork", description: error.message, variant: "destructive" })
+      setIsEditDialogOpen(false)
+      return
+    }
+
+    setEditProduct(data as ProductRow)
   }
+
 
   async function handleSubmitEditProduct(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    if (!editProduct) return
+  e.preventDefault()
+  if (!editProduct) return
 
-    const form = e.currentTarget
-    const titleInput = form.querySelector<HTMLInputElement>("#edit_title")
-    const descInput = form.querySelector<HTMLTextAreaElement>("#edit_description")
-    const priceInput = form.querySelector<HTMLInputElement>("#edit_price")
-    const featuredInput = form.querySelector<HTMLInputElement>("#edit_featured")
-    const publishedInput = form.querySelector<HTMLInputElement>("#edit_published")
+  const current = editProduct // ✅ prevents TS "possibly null" across awaits
 
-    const title = titleInput?.value?.trim() ?? ""
-    const description = descInput?.value?.trim() ?? ""
-    const priceStr = priceInput?.value?.trim() ?? ""
-    const featured = !!featuredInput?.checked
-    const is_published = !!publishedInput?.checked
+  const form = e.currentTarget
+  const titleInput = form.querySelector<HTMLInputElement>("#edit_title")
+  const descInput = form.querySelector<HTMLTextAreaElement>("#edit_description")
+  const priceInput = form.querySelector<HTMLInputElement>("#edit_price")
+  const featuredInput = form.querySelector<HTMLInputElement>("#edit_featured")
+  const publishedInput = form.querySelector<HTMLInputElement>("#edit_published")
 
-    if (!title) {
-      toast({ title: "Title required", description: "Please enter a title.", variant: "destructive" })
-      return
-    }
+  const title = titleInput?.value?.trim() ?? ""
+  const description = descInput?.value?.trim() ?? ""
+  const priceStr = priceInput?.value?.trim() ?? ""
+  const featured = !!featuredInput?.checked
+  const is_published = !!publishedInput?.checked
 
-    const price_cents = priceStr === "" ? null : Math.round(Number(priceStr) * 100)
-    if (priceStr !== "" && (Number.isNaN(Number(priceStr)) || Number(priceStr) < 0)) {
-      toast({ title: "Invalid price", description: "Price must be ≥ 0 (or leave empty).", variant: "destructive" })
-      return
-    }
+  if (!title) {
+    toast({ title: "Title required", description: "Please enter a title.", variant: "destructive" })
+    return
+  }
 
-    setEditing(true)
-    try {
-      const { data, error } = await supabaseBrowser
-        .from("products")
-        .update({
-          title,
-          description: description || null,
-          price_cents,
-          featured,
-          is_published,
-        })
-        .eq("id", editProduct.id)
-        .select("id,title,slug,description,price_cents,currency,featured,is_published")
-        .single()
+  // ✅ slug update when title changes + uniqueness check
+  let newSlug = current.slug
+  if (title !== current.title) {
+    newSlug = slugifyTitle(title)
 
-      if (error) throw error
+    const { data: existing } = await supabaseBrowser
+      .from("products")
+      .select("id")
+      .eq("slug", newSlug)
+      .neq("id", current.id)
+      .maybeSingle()
 
-      setProducts((prev) => prev.map((p) => (p.id === data.id ? (data as ProductRow) : p)))
-
-      toast({ title: "Updated", description: "Artwork updated successfully." })
-      setIsEditDialogOpen(false)
-      setEditProduct(null)
-    } catch (err: any) {
-      toast({ title: "Update failed", description: err?.message ?? String(err), variant: "destructive" })
-    } finally {
-      setEditing(false)
+    if (existing) {
+      newSlug = `${newSlug}-${crypto.randomUUID().slice(0, 6)}`
     }
   }
+
+  const price_cents = priceStr === "" ? null : Math.round(Number(priceStr) * 100)
+  if (priceStr !== "" && (Number.isNaN(Number(priceStr)) || Number(priceStr) < 0)) {
+    toast({ title: "Invalid price", description: "Price must be ≥ 0 (or leave empty).", variant: "destructive" })
+    return
+  }
+
+  setEditing(true)
+  try {
+    const { data, error } = await supabaseBrowser
+      .from("products")
+      .update({
+        title,
+        slug: newSlug, // ✅ added
+        description: description || null,
+        price_cents,
+        featured,
+        is_published,
+      })
+      .eq("id", current.id) // ✅ use current.id
+      .select("id,title,slug,description,price_cents,currency,featured,is_published")
+      .single()
+
+    if (error) throw error
+
+    setProducts((prev) => prev.map((p) => (p.id === data.id ? (data as ProductRow) : p)))
+
+    toast({ title: "Updated", description: "Artwork updated successfully." })
+    setIsEditDialogOpen(false)
+    setEditProduct(null)
+  } catch (err: any) {
+    toast({ title: "Update failed", description: err?.message ?? String(err), variant: "destructive" })
+  } finally {
+    setEditing(false)
+  }
+}
+
 
   // -------------------------
   // Delete product (DB only)
   // -------------------------
-  async function handleDeleteProduct(id: string, title: string) {
-    if (!confirm(`Delete "${title}"? This will remove the product row.`)) return
+async function handleDeleteProduct(id: string, title: string) {
+  if (!confirm(`Delete "${title}"? This will remove the product AND its images.`)) return
 
-    const { error } = await supabaseBrowser.from("products").delete().eq("id", id)
-    if (error) {
-      toast({ title: "Delete failed", description: error.message, variant: "destructive" })
-      return
+  try {
+    // 1) Get all image paths for this product
+    const { data: imgs, error: imgsErr } = await supabaseBrowser
+      .from("product_images")
+      .select("path")
+      .eq("product_id", id)
+
+    if (imgsErr) throw imgsErr
+
+    const paths = (imgs ?? [])
+      .map((x) => x.path)
+      .filter((p): p is string => typeof p === "string" && p.length > 0)
+
+    // 2) Delete files from Storage (bucket: artworks)
+    // Note: storage.remove() expects an array of object paths inside the bucket.
+    if (paths.length > 0) {
+      const { error: storageErr } = await supabaseBrowser.storage.from("artworks").remove(paths)
+      if (storageErr) throw storageErr
     }
 
-    toast({ title: "Deleted", description: "Artwork removed." })
+    // 3) Delete product_images rows
+    const { error: delImgsErr } = await supabaseBrowser.from("product_images").delete().eq("product_id", id)
+    if (delImgsErr) throw delImgsErr
+
+    // 4) Delete product row
+    const { error: delProdErr } = await supabaseBrowser.from("products").delete().eq("id", id)
+    if (delProdErr) throw delProdErr
+
+    toast({ title: "Deleted", description: "Artwork and images removed." })
     setProducts((prev) => prev.filter((p) => p.id !== id))
+  } catch (err: any) {
+    toast({ title: "Delete failed", description: err?.message ?? String(err), variant: "destructive" })
   }
+}
+
+async function toggleField(id: string, field: "featured" | "is_published", value: boolean) {
+  // optimistic UI
+  setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
+
+  const { data, error } = await supabaseBrowser
+    .from("products")
+    .update({ [field]: value })
+    .eq("id", id)
+    .select("id,title,slug,description,price_cents,currency,featured,is_published")
+    .single()
+
+  if (error) {
+    // rollback
+    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: !value } : p)))
+    toast({ title: "Update failed", description: error.message, variant: "destructive" })
+    return
+  }
+
+  // sync with DB returned row
+  setProducts((prev) => prev.map((p) => (p.id === data.id ? (data as ProductRow) : p)))
+}
 
   async function handleLogout() {
     await supabaseBrowser.auth.signOut()
@@ -460,8 +545,22 @@ export default function AdminDashboard() {
                         <TableCell>
                           {p.price_cents != null ? `$${(p.price_cents / 100).toFixed(2)} ${p.currency ?? "CAD"}` : "Price on request"}
                         </TableCell>
-                        <TableCell>{p.featured ? <span className="text-green-600 font-medium">Yes</span> : "No"}</TableCell>
-                        <TableCell>{p.is_published ? <span className="text-green-600 font-medium">Yes</span> : "No"}</TableCell>
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={p.featured}
+                            onChange={(e) => toggleField(p.id, "featured", e.currentTarget.checked)}
+                            className="h-4 w-4"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={p.is_published}
+                            onChange={(e) => toggleField(p.id, "is_published", e.currentTarget.checked)}
+                            className="h-4 w-4"
+                          />
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
@@ -540,7 +639,9 @@ export default function AdminDashboard() {
                   </Button>
                 </div>
               </form>
-            ) : null}
+            ) : (
+              <LogoLoader size={72} />
+            )}
           </DialogContent>
         </Dialog>
       </main>
