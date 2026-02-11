@@ -29,6 +29,16 @@ type ProductRow = {
   is_published: boolean
 }
 
+type InquiryRow = {
+  id: string
+  name: string
+  email: string
+  subject: string | null
+  message: string
+  product_slug: string | null
+  product_title: string | null
+  created_at: string
+}
 export default function AdminDashboard() {
   const { toast } = useToast()
   const router = useRouter()
@@ -47,6 +57,9 @@ export default function AdminDashboard() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editProduct, setEditProduct] = useState<ProductRow | null>(null)
+  const [inquiries, setInquiries] = useState<InquiryRow[]>([])
+  const [inquiriesLoading, setInquiriesLoading] = useState(false)
+
 
   // -------------------------
   // Load products
@@ -69,8 +82,33 @@ export default function AdminDashboard() {
     setLoading(false)
   }
 
+  // -------------------------
+  // Load Inquiry
+  // -------------------------
+  async function loadInquiries() {
+  setInquiriesLoading(true)
+
+  const { data, error } = await supabaseBrowser
+    .from("inquiries")
+    .select("id,name,email,subject,message,product_slug,product_title,created_at")
+    .order("created_at", { ascending: false })
+    .limit(10)
+
+  if (error) {
+    toast({ title: "Failed to load inquiries", description: error.message, variant: "destructive" })
+    setInquiries([])
+    setInquiriesLoading(false)
+    return
+  }
+
+  setInquiries((data ?? []) as InquiryRow[])
+  setInquiriesLoading(false)
+}
+
+
   useEffect(() => {
     loadProducts()
+    loadInquiries()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -579,6 +617,36 @@ async function toggleField(id: string, field: "featured" | "is_published", value
             </div>
           </CardContent>
         </Card>
+
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>Latest Inquiries</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {inquiriesLoading ? (
+              <p className="text-sm text-muted-foreground">Loading inquiries…</p>
+            ) : inquiries.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No inquiries yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {inquiries.map((q) => (
+                  <div key={q.id} className="rounded-lg border p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium">{q.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(q.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="text-sm text-muted-foreground">{q.email}</div>
+                    <div className="mt-2 font-medium">{q.subject ?? "No subject"}</div>
+                    <div className="mt-1 text-sm whitespace-pre-wrap">{q.message}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
 
         {/* Edit Dialog (outside table) */}
         <Dialog

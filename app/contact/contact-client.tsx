@@ -35,6 +35,9 @@ export default function ContactClientPage() {
   const [email, setEmail] = useState("")
   const [subject, setSubject] = useState("")
   const [message, setMessage] = useState("")
+  const defaultSubject = "General inquiry"
+  const defaultMessage = "Hello PRAVEE Arts,\n\nI’d like to get in touch.\n\nThank you!"
+
 
   useEffect(() => {
     let cancelled = false
@@ -72,38 +75,83 @@ export default function ContactClientPage() {
   }, [artworkSlug])
 
   // ✅ derived suggestions (no setState in effect)
-  const suggestedSubject = useMemo(() => {
-    if (!artworkSlug) return ""
-    return `Inquiry: ${artwork?.title ?? artworkSlug}`
-  }, [artworkSlug, artwork])
+const suggestedSubject = useMemo(() => {
+    if (artworkSlug) return `Inquiry: ${artwork?.title ?? artworkSlug}`
+    return defaultSubject
+}, [artworkSlug, artwork])
 
-  const suggestedMessage = useMemo(() => {
-    if (!artworkSlug) return ""
-    return `Hello PRAVEE Arts,\n\nI’m interested in the artwork: ${
-      artwork?.title ?? artworkSlug
-    }\n\nCould you please share details about availability, dimensions, medium, and price?\n\nThank you!`
-  }, [artworkSlug, artwork])
+const suggestedMessage = useMemo(() => {
+    if (artworkSlug) {
+        return `Hello PRAVEE Arts,\n\nI’m interested in the artwork: ${
+        artwork?.title ?? artworkSlug
+        }\n\nCould you please share details about availability, dimensions, medium, and price?\n\nThank you!`
+    }
+    return defaultMessage
+}, [artworkSlug, artwork])
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+useEffect(() => {
+  // only auto-fill if user hasn’t typed anything yet
+  setSubject((prev) => (prev.trim() ? prev : suggestedSubject))
+  setMessage((prev) => (prev.trim() ? prev : suggestedMessage))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [artworkSlug, artwork?.title])
 
-    // Milestone 9: store inquiries in DB / send email
-    await new Promise((resolve) => setTimeout(resolve, 700))
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault()
+  setIsSubmitting(true)
+
+  // ✅ hard defaults (works even on plain /contact)
+  const finalSubject =
+    (subject && subject.trim()) ||
+    (suggestedSubject && suggestedSubject.trim()) ||
+    "General inquiry"
+
+  const finalMessage =
+    (message && message.trim()) ||
+    (suggestedMessage && suggestedMessage.trim()) ||
+    "Hello PRAVEE Arts,\n\nI’d like to get in touch.\n\nThank you!"
+
+  try {
+    const res = await fetch("/api/inquiries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        email,
+        subject: finalSubject,
+        message: finalMessage,
+        productTitle: artwork?.title ?? "",
+        productSlug: artwork?.slug ?? artworkSlug ?? "",
+      }),
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      throw new Error(data?.error ?? `Request failed (${res.status})`)
+    }
 
     toast({
-      title: "Message received!",
+      title: "Message sent!",
       description: "Thanks for reaching out. I’ll get back to you as soon as possible.",
     })
 
-    setIsSubmitting(false)
-
-    // reset fields (fallback suggestions will show again)
     setName("")
     setEmail("")
     setSubject("")
     setMessage("")
+  } catch (err: any) {
+    toast({
+      title: "Sending failed",
+      description: err?.message ?? "Please try again.",
+      variant: "destructive",
+    })
+  } finally {
+    setIsSubmitting(false)
   }
+}
+
+
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -173,7 +221,7 @@ export default function ContactClientPage() {
                         id="subject"
                         placeholder="Artwork inquiry / Commission / Collaboration"
                         required
-                        value={subject || suggestedSubject}
+                        value={subject}
                         onChange={(e) => setSubject(e.target.value)}
                       />
                     </div>
@@ -185,7 +233,7 @@ export default function ContactClientPage() {
                         placeholder="Tell me what you’re looking for…"
                         rows={6}
                         required
-                        value={message || suggestedMessage}
+                        value={message}
                         onChange={(e) => setMessage(e.target.value)}
                       />
                     </div>
