@@ -1,12 +1,28 @@
 "use client"
+
+import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Menu } from "lucide-react"
+import { usePathname } from "next/navigation"
+
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { ThemeToggle } from "@/components/theme-toggle"
 
 export function Navbar() {
+  const [scrolled, setScrolled] = useState(false)
+  const pathname = usePathname()
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20)
+    }
+
+    handleScroll()
+    window.addEventListener("scroll", handleScroll)
+
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
 
   const navLinks = [
     { href: "/", label: "Home" },
@@ -15,54 +31,63 @@ export function Navbar() {
     { href: "/contact", label: "Contact" },
   ]
 
+  const isHomePage = pathname === "/"
+
+  const useTransparentStyle = useMemo(() => {
+    return isHomePage && !scrolled
+  }, [isHomePage, scrolled])
+
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <nav
+      className={`fixed top-0 z-50 w-full transition-all duration-500 ${
+        useTransparentStyle
+          ? "border-transparent bg-transparent"
+          : "border-b border-border/60 bg-background/90 backdrop-blur-xl"
+      }`}
+    >
       <div className="container mx-auto px-4">
         <div className="flex h-20 items-center justify-between">
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-3">
             <Image
-              src="/branding/Pravee-arts-logo.PNG" // or .jpg
+              src="/branding/logonew.png"
               alt="PRAVEE Arts logo"
-              width={120}
-              height={120}
-              className="object-contain"
+              width={160}
+              height={60}
+              className="h-auto w-[140px] object-contain md:w-[160px]"
               priority
             />
-            {/* <span className="text-2xl font-serif font-semibold tracking-tight">
-              PRAVEE Arts
-            </span> */}
           </Link>
-  
 
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden items-center gap-8 md:flex">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-sm font-medium transition-colors hover:text-primary"
+                className={`text-sm uppercase tracking-[0.18em] transition-colors ${
+                  useTransparentStyle
+                    ? "text-white/90 hover:text-white"
+                    : "text-foreground/80 hover:text-foreground"
+                }`}
               >
                 {link.label}
               </Link>
             ))}
           </div>
 
-          {/* Cart & Mobile Menu */}
-          <div className="flex items-center space-x-4">
-            {/* Theme Toggle Button */}
-            <ThemeToggle />
-
-            {/* Mobile Menu */}
+          <div className="flex items-center gap-3">
             <Sheet>
               <SheetTrigger asChild className="md:hidden">
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-5 w-5" />
+                <Button variant="ghost" size="icon" aria-label="Open menu">
+                  <Menu
+                    className={`h-5 w-5 ${
+                      useTransparentStyle ? "text-white" : "text-foreground"
+                    }`}
+                  />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right">
-                <div className="flex flex-col space-y-4 mt-8">
+
+              <SheetContent side="right" className="w-[85%] sm:w-[380px]">
+                <div className="mt-10 flex flex-col space-y-6">
                   {navLinks.map((link) => (
                     <Link
                       key={link.href}

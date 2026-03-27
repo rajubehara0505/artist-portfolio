@@ -1,12 +1,17 @@
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { ArtworkCard } from "@/components/artwork-card"
+import Image from "next/image"
+import { ArrowRight } from "lucide-react"
+
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { ArrowRight } from "lucide-react"
+import { HeroSplit } from "@/components/hero-split"
+import { ArtworkCard } from "@/components/artwork-card"
+import { Button } from "@/components/ui/button"
+import { ScrollReveal } from "@/components/scroll-reveal"
+import { PageFade } from "@/components/page-fade"
 import { getSupabaseServerClient } from "@/lib/supabase/ssr"
 
-export default async function Home() {
+export default async function HomePage() {
   const supabase = await getSupabaseServerClient()
 
   const { data: featuredArtworks, error } = await supabase
@@ -39,91 +44,134 @@ export default async function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Navbar />
 
       <main className="flex-1">
-        {/* Hero Section */}
-        <section className="container mx-auto px-4 py-20 md:py-28">
-          <div className="max-w-3xl mx-auto text-center space-y-6">
-            <h1 className="text-4xl md:text-6xl font-serif font-bold tracking-tight text-balance">
-              PRAVEE Arts
-            </h1>
+        <HeroSplit />
 
-            <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
-              Original mixed media artworks and immersive installations—crafted with texture, contrast, and story.
-            </p>
+        <PageFade>
+          <div className="pt-20">
+            <ScrollReveal>
+              <section className="py-16 md:py-28">
+                <div className="container mx-auto px-4">
+                  <div className="mx-auto max-w-3xl text-center">
+                    <p className="mb-3 text-xs uppercase tracking-[0.32em] text-muted-foreground">
+                      Featured Collection
+                    </p>
+                    <h2 className="font-serif text-3xl md:text-5xl font-semibold tracking-tight">
+                      Selected Works
+                    </h2>
+                    <p className="mt-5 text-muted-foreground leading-relaxed md:text-lg">
+                      A curated selection of published artworks that reflect texture,
+                      movement, emotion, and visual storytelling.
+                    </p>
+                  </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Button asChild size="lg">
-                <Link href="/gallery">
-                  Explore Gallery
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
+                  <div className="mt-12 grid grid-cols-1 gap-5 md:mt-14 md:grid-cols-2 md:gap-5 lg:grid-cols-3 lg:gap-8">
+                    {(featuredArtworks ?? []).map((artwork: any) => (
+                      <ArtworkCard key={artwork.id} artwork={artwork} />
+                    ))}
+                  </div>
 
-              <Button asChild variant="outline" size="lg">
-                <Link href="/contact">Inquire / Contact</Link>
-              </Button>
-            </div>
+                  <div className="mt-12 text-center">
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="lg"
+                      className="rounded-full px-7 transition-all duration-300 hover:scale-[1.03]"
+                    >
+                      <Link href="/gallery">
+                        View Full Gallery
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </section>
+            </ScrollReveal>
+
+            <ScrollReveal delay={100}>
+              <section className="border-y border-border/60 bg-muted/20 py-16 md:py-28">
+                <div className="container mx-auto px-4">
+                  <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-[1.05fr_0.95fr] md:items-center md:gap-12">
+                    <div className="relative overflow-hidden rounded-[2rem] bg-muted shadow-sm">
+                      <div className="relative aspect-[5/4]">
+                        <Image
+                          src="/solo.jpeg"
+                          alt="Portrait of the artist"
+                          fill
+                          sizes="(max-width: 768px) 50vw, 50vw"
+                          className="object-cover"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-5 md:space-y-6">
+                      <p className="text-xs uppercase tracking-[0.32em] text-muted-foreground">
+                        About the Artist
+                      </p>
+
+                      <h2 className="font-serif text-3xl md:text-5xl font-semibold tracking-tight">
+                        Creating art through texture, form, and emotion
+                      </h2>
+
+                      <p className="text-muted-foreground leading-relaxed md:text-lg">
+                        PRAVEE Arts explores mixed media, layered surfaces, and immersive
+                        visual storytelling. Each piece is designed to hold presence,
+                        invite reflection, and connect viewers with material, memory, and nature.
+                      </p>
+
+                      <p className="text-muted-foreground leading-relaxed md:text-lg">
+                        With international exhibition experience and a strong passion for
+                        experimentation, the practice moves between canvas, installation,
+                        and sensory expression.
+                      </p>
+
+                      <Button
+                        asChild
+                        className="rounded-full px-7 transition-all duration-300 hover:scale-[1.03]"
+                      >
+                        <Link href="/about">Read More</Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </ScrollReveal>
+
+            <ScrollReveal delay={150}>
+              <section className="py-14 md:py-24">
+                <div className="container mx-auto px-4">
+                  <div className="mx-auto max-w-4xl rounded-[2rem] border border-border/70 bg-card px-6 py-12 text-center shadow-sm md:px-12">
+                    <p className="text-xs uppercase tracking-[0.32em] text-muted-foreground">
+                      Inquiries & Commissions
+                    </p>
+
+                    <h2 className="mt-4 font-serif text-3xl md:text-5xl font-semibold tracking-tight">
+                      Looking for an original piece or commission?
+                    </h2>
+
+                    <p className="mx-auto mt-5 max-w-2xl text-muted-foreground leading-relaxed md:text-lg">
+                      For commissions, pricing, availability, collaborations, or exhibition
+                      inquiries, get in touch to begin the conversation.
+                    </p>
+
+                    <div className="mt-8">
+                      <Button
+                        asChild
+                        size="lg"
+                        className="rounded-full px-8 transition-all duration-300 hover:scale-[1.03]"
+                      >
+                        <Link href="/contact">Contact the Artist</Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </ScrollReveal>
           </div>
-        </section>
-
-        {/* Featured Artworks */}
-        <section className="bg-muted/30 py-16 md:py-24">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-serif font-bold mb-4">Featured Artworks</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                A curated selection of featured pieces currently published in the collection.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-              {(featuredArtworks ?? []).map((artwork: any) => (
-                <ArtworkCard key={artwork.id} artwork={artwork} />
-              ))}
-            </div>
-
-            <div className="text-center mt-12">
-              <Button asChild variant="outline" size="lg">
-                <Link href="/gallery">View All Artworks</Link>
-              </Button>
-            </div>
-          </div>
-        </section>
-
-        {/* Artist Bio Section (REAL, not dummy) */}
-        <section className="container mx-auto px-4 py-16 md:py-24">
-          <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-12 items-center">
-            <div className="aspect-square bg-muted rounded-lg overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/PraveePhoto.jpeg"
-                alt="PRAVEE Arts - Artist Portrait"
-                className="w-full h-full object-cover"
-              />
-            </div>
-
-            <div className="space-y-6">
-              <h2 className="text-3xl md:text-4xl font-serif font-bold">About the Artist</h2>
-
-              <p className="text-muted-foreground leading-relaxed">
-                I’m a visual artist with 19+ years of experience in Arts &amp; Design, showcasing my work internationally
-                and presenting a solo exhibition at the Ottawa Little Theatre, Canada.
-              </p>
-
-              <p className="text-muted-foreground leading-relaxed">
-                My practice centers on mixed media—layering materials, building textures, and creating pieces that invite
-                exploration. I also create installation art that transforms ideas into immersive, sensory experiences.
-              </p>
-
-              <Button asChild>
-                <Link href="/about">Read Full Story</Link>
-              </Button>
-            </div>
-          </div>
-        </section>
+        </PageFade>
       </main>
 
       <Footer />

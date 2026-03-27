@@ -7,7 +7,7 @@ export function LogoLoader({ size = 64 }: { size?: number }) {
     <div className="flex items-center justify-center py-10">
       <div className="animate-pulse">
         <Image
-          src="/public/Pravee-arts-logo.PNG"   // 👈 make sure this exists in /public
+          src="/public/logo.PNG"   // 👈 make sure this exists in /public
           alt="Loading"
           width={size}
           height={size}

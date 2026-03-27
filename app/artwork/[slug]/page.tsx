@@ -1,43 +1,23 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { getSupabaseServerClient } from "@/lib/supabase/ssr"
+import { ArrowLeft, ArrowRight } from "lucide-react"
+
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
+import { PageFade } from "@/components/page-fade"
+import { ArtworkLightbox } from "@/components/artwork-lightbox"
+import { getSupabaseServerClient } from "@/lib/supabase/ssr"
 
-type Product = {
-  id: string
-  title: string
-  slug: string
-  description: string | null
-  price_cents: number | null
-  currency: string | null
-  is_published: boolean
-  product_images: {
-    id: string
-    path: string
-    alt: string | null
-    sort_order: number
-  }[]
-}
-
-function toPublicImageUrl(path: string) {
-  if (!path) return ""
-  if (path.startsWith("http")) return path
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL
-  return `${base}/storage/v1/object/public/artworks/${path}`
-}
-
-function formatPrice(price_cents: number | null, currency: string | null) {
-  if (!price_cents || price_cents <= 0) return null
-  return `${(price_cents / 100).toFixed(2)} ${currency ?? ""}`.trim()
-}
-
-export default async function ArtworkPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ArtworkDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
   const { slug } = await params
   const supabase = await getSupabaseServerClient()
 
-  const { data, error } = await supabase
+  const { data: artwork, error } = await supabase
     .from("products")
     .select(
       `
@@ -47,6 +27,7 @@ export default async function ArtworkPage({ params }: { params: Promise<{ slug: 
       description,
       price_cents,
       currency,
+      featured,
       is_published,
       product_images (
         id,
@@ -59,88 +40,133 @@ export default async function ArtworkPage({ params }: { params: Promise<{ slug: 
     .eq("slug", slug)
     .eq("is_published", true)
     .order("sort_order", { referencedTable: "product_images", ascending: true })
-    .maybeSingle()
+    .single()
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-1 p-6 max-w-5xl mx-auto">
-          <p className="text-red-600">Failed to load artwork: {error.message}</p>
-        </main>
-        <Footer />
-      </div>
-    )
+  if (error || !artwork) {
+    notFound()
   }
 
-  if (!data) notFound()
-
-  const product = data as Product
-  const firstImage = product.product_images?.[0]
-  const firstImageUrl = firstImage ? toPublicImageUrl(firstImage.path) : ""
-  const priceText = formatPrice(product.price_cents, product.currency)
-
-  // ✅ This MUST be the link that makes Contact show "Regarding"
-  const inquiryHref = `/contact?artwork=${encodeURIComponent(product.slug)}`
+  const images = artwork.product_images ?? []
+  const price =
+    artwork.price_cents != null
+      ? ((artwork.price_cents ?? 0) / 100).toFixed(2)
+      : null
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       <Navbar />
 
-      <main className="flex-1">
-        <div className="p-6 max-w-5xl mx-auto">
-          {/* Top actions */}
-          <div className="mb-6 flex items-center justify-between gap-3">
-            <Link href="/gallery" className="text-sm text-muted-foreground hover:underline">
-              ← Back to gallery
-            </Link>
-
-            {/* <Button asChild>
-              <Link href={inquiryHref}>Inquire to buy</Link>
-            </Button> */}
-          </div>
-
-          <div className="grid gap-8 md:grid-cols-2">
-            {/* Image */}
-            <div>
-              <div className="aspect-[4/3] overflow-hidden rounded-xl border bg-muted">
-                {firstImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={firstImageUrl}
-                    alt={firstImage.alt ?? product.title}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="h-full w-full flex items-center justify-center text-muted-foreground">
-                    No image
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Details */}
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight">{product.title}</h1>
-
-              <p className="mt-3 text-muted-foreground">{priceText ? priceText : "Price on request"}</p>
-
-              <div className="mt-6">
-                <Button asChild className="w-full sm:w-auto">
-                  <Link href={inquiryHref}>Inquire about this artwork</Link>
+      <main className="flex-1 pt-20">
+        <PageFade>
+          <section className="border-b border-border/60 bg-muted/20 py-10 md:py-14">
+            <div className="container mx-auto px-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="rounded-full px-0 hover:bg-transparent"
+                >
+                  <Link href="/gallery" className="inline-flex items-center gap-2">
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to Gallery
+                  </Link>
                 </Button>
-              </div>
 
-              {product.description ? (
-                <p className="mt-6 leading-relaxed whitespace-pre-line">{product.description}</p>
-              ) : (
-                <p className="mt-6 text-muted-foreground">
-                  For details about availability, dimensions, medium, and pricing, please send an inquiry.
+                <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
+                  Artwork Detail
                 </p>
-              )}
+              </div>
+            </div>
+          </section>
+        </PageFade>
+
+        <section className="py-12 md:py-18">
+          <div className="container mx-auto px-4">
+            <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
+              <PageFade>
+                <ArtworkLightbox images={images} title={artwork.title} />
+              </PageFade>
+
+              <PageFade>
+                <div className="lg:sticky lg:top-28">
+                  <div className="gallery-frame p-5 md:p-8">
+                    <p className="text-xs uppercase tracking-[0.32em] text-muted-foreground">
+                      PRAVEE Arts
+                    </p>
+
+                    <h1 className="mt-4 font-serif text-4xl font-semibold tracking-tight md:text-5xl">
+                      {artwork.title}
+                    </h1>
+
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      {artwork.featured && (
+                        <span className="rounded-full border border-border/70 px-4 py-1.5 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                          Featured
+                        </span>
+                      )}
+
+                      <span className="rounded-full border border-border/70 px-4 py-1.5 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        Original Work
+                      </span>
+                    </div>
+
+                    <div className="mt-8">
+                      <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
+                        Price
+                      </p>
+                      <p className="mt-2 font-serif text-3xl">
+                        {price ? `$${price} ${artwork.currency ?? "CAD"}` : "Price on request"}
+                      </p>
+                    </div>
+
+                    <div className="mt-8">
+                      <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
+                        Description
+                      </p>
+                      <p className="mt-3 leading-relaxed text-muted-foreground md:text-lg">
+                        {artwork.description?.trim()
+                          ? artwork.description
+                          : "This artwork is part of the artist’s curated collection, created through material exploration, texture, and visual storytelling."}
+                      </p>
+                    </div>
+
+                    <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+                      <Button
+                        asChild
+                        size="lg"
+                        className="rounded-full px-8 transition-all duration-300 hover:scale-[1.03]"
+                      >
+                        <Link href={`/contact?artwork=${artwork.slug}`}>
+                          Inquire About This Piece
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      </Button>
+
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="lg"
+                        className="rounded-full px-8 transition-all duration-300 hover:scale-[1.03]"
+                      >
+                        <Link href="/gallery">View More Works</Link>
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 gallery-frame p-6">
+                    <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
+                      Collector Note
+                    </p>
+                    <p className="mt-3 leading-relaxed text-muted-foreground">
+                      For commissions, framing questions, availability, or purchase-related
+                      inquiries, please reach out through the contact page.
+                    </p>
+                  </div>
+                </div>
+              </PageFade>
             </div>
           </div>
-        </div>
+        </section>
       </main>
 
       <Footer />
