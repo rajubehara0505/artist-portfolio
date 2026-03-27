@@ -1,39 +1,21 @@
-import { getSupabaseServerClient } from "@/lib/supabase/ssr";
-import Link from "next/link";
-
-function toPublicImageUrl(path: string) {
-  if (!path) return "";
-  if (path.startsWith("http")) return path; // legacy rows
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  return `${base}/storage/v1/object/public/artworks/${path}`;
-}
-
-type GalleryItem = {
-  id: string;
-  title: string;
-  slug: string;
-  price_cents: number;
-  currency: string;
-  featured: boolean;
-  is_published: boolean;
-  product_images: {
-    id: string;
-    path: string;
-    alt: string | null;
-    sort_order: number;
-  }[];
-};
+import { Navbar } from "@/components/navbar"
+import { Footer } from "@/components/footer"
+import { ArtworkCard } from "@/components/artwork-card"
+import { ScrollReveal } from "@/components/scroll-reveal"
+import { PageFade } from "@/components/page-fade"
+import { getSupabaseServerClient } from "@/lib/supabase/ssr"
 
 export default async function GalleryPage() {
-  const supabase = await getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient()
 
-  const { data, error } = await supabase
+  const { data: artworks, error } = await supabase
     .from("products")
     .select(
       `
       id,
       title,
       slug,
+      description,
       price_cents,
       currency,
       featured,
@@ -48,76 +30,95 @@ export default async function GalleryPage() {
     )
     .eq("is_published", true)
     .order("created_at", { ascending: false })
-    .order("sort_order", { referencedTable: "product_images", ascending: true });
+    .order("sort_order", { referencedTable: "product_images", ascending: true })
 
   if (error) {
-    return (
-      <div className="p-6">
-        <h1 className="text-xl font-semibold">Gallery</h1>
-        <p className="mt-4 text-red-600">
-          Failed to load products: {error.message}
-        </p>
-      </div>
-    );
+    console.error("Failed to load gallery artworks:", error.message)
   }
 
-  const products = (data ?? []) as GalleryItem[];
+  const allArtworks = artworks ?? []
+  const featuredCount = allArtworks.filter((item: any) => item.featured).length
 
   return (
-    <div className="p-6">
-      <h1 className="text-xl font-semibold">Gallery</h1>
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <Navbar />
 
-      {products.length === 0 ? (
-        <p className="mt-4 text-muted-foreground">No published artworks yet.</p>
-      ) : (
-        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((p) => {
-            const firstImage = p.product_images?.[0];
-            const extraCount = Math.max(0, (p.product_images?.length ?? 0) - 1);
+      <main className="flex-1 pt-20">
+        <PageFade>
+          <ScrollReveal>
+            <section className="border-b border-border/60 bg-muted/20 py-14 md:py-24">
+              <div className="container mx-auto px-4">
+                <div className="mx-auto max-w-4xl text-center">
+                  <p className="mb-3 text-xs uppercase tracking-[0.32em] text-muted-foreground">
+                    Gallery
+                  </p>
 
-            return (
-              <Link
-                key={p.id}
-                href={`/artwork/${p.slug}`}
-                className="block overflow-hidden rounded-xl border hover:shadow-sm transition"
-              >
-                <div className="aspect-[4/3] w-full bg-muted relative">
-                  {firstImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={toPublicImageUrl(firstImage.path)}
-                      alt={firstImage.alt ?? p.title}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : null}
+                  <h1 className="font-serif text-4xl md:text-6xl font-semibold tracking-tight">
+                    A curated collection of original works
+                  </h1>
 
-                  {extraCount > 0 ? (
-                    <div className="absolute bottom-2 right-2 rounded-full bg-black/80 text-white px-2 py-1 text-xs">
-                      +{extraCount} photos
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className="font-medium">{p.title}</h2>
-                    {p.featured ? (
-                      <span className="rounded-full bg-black text-white px-2 py-1 text-xs">
-                        Featured
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {(p.price_cents / 100).toFixed(2)} {p.currency}
+                  <p className="mx-auto mt-6 max-w-2xl text-muted-foreground leading-relaxed md:text-lg">
+                    Explore published artworks shaped through texture, contrast,
+                    material, and visual storytelling.
                   </p>
                 </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+
+                <div className="mx-auto mt-8 grid max-w-3xl grid-cols-1 gap-4 sm:mt-10 sm:grid-cols-3">
+                  <div className="gallery-frame p-5 text-center">
+                    <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                      Total Works
+                    </p>
+                    <p className="mt-2 font-serif text-3xl">{allArtworks.length}</p>
+                  </div>
+
+                  <div className="gallery-frame p-5 text-center">
+                    <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                      Featured
+                    </p>
+                    <p className="mt-2 font-serif text-3xl">{featuredCount}</p>
+                  </div>
+
+                  <div className="gallery-frame p-5 text-center">
+                    <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                      Status
+                    </p>
+                    <p className="mt-2 font-serif text-3xl">Live</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </ScrollReveal>
+
+          <ScrollReveal delay={100}>
+
+            <section className="py-14 md:py-16">
+              <div className="container mx-auto px-4">
+                {allArtworks.length === 0 ? (
+                  <div className="mx-auto max-w-2xl rounded-[2rem] border border-border/60 bg-card px-5 py-10 text-center shadow-sm md:px-6 md:py-14">
+                    <p className="text-xs uppercase tracking-[0.32em] text-muted-foreground">
+                      Gallery
+                    </p>
+                    <h2 className="mt-4 font-serif text-3xl font-semibold tracking-tight">
+                      No published artworks yet
+                    </h2>
+                    <p className="mt-4 text-muted-foreground leading-relaxed">
+                      Your gallery is ready. Once artworks are published, they will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 lg:gap-8">
+                    {allArtworks.map((artwork: any) => (
+                      <ArtworkCard key={artwork.id} artwork={artwork} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          </ScrollReveal>
+        </PageFade>  
+      </main>
+
+      <Footer />
     </div>
-  );
+  )
 }
